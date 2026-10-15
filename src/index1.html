@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>油耗计算器</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui, sans-serif;}
+body{max-width:1000px;margin:15px auto;padding:0 10px;}
+h1{text-align:center;background:#d48b28;color:#fff;padding:12px;border-radius:6px;margin:0;line-height:1.4;font-size:28px;}
+h1 span{font-size:20px;font-weight:normal;}
+table{width:100%;border-collapse:collapse;margin:15px 0;}
+td,th{border:1px solid #ccc;padding:8px 4px;text-align:center;font-size:15px;}
+.input th{background:#dd3333;color:#fff;}
+.result-top th:nth-child(1){background:#27ae60;color:white;}
+.result-top th:nth-child(2){background:#f1c40f;color:#222;}
+.result-top th:nth-child(3){background:#346edb;color:white;}
+input{width:100%;padding:8px;font-size:16px;border:1px solid #aaa;border-radius:4px;}
+.btn-area{text-align:center;margin:10px 0;}
+button{padding:9px 10px;margin:4px;font-size:14px;border:none;border-radius:4px;cursor:pointer;}
+#saveBtn{background:#228822;color:#fff;}
+#exportCsvBtn{background:#1a7f37;color:#fff;}
+#exportTxtBtn{background:#b8860b;color:#fff;}
+#exportBtn{background:#2178dd;color:#fff;}
+#importBtn{background:#9b59b6;color:#fff;}
+#clearAllBtn{background:#bb2222;color:#fff;}
+.del-btn{background:#dd3333;color:#fff;padding:4px 6px;font-size:12px;}
+.history-title{font-size:17px;font-weight:bold;margin-top:20px;}
+.stats{background:#eef5ff;padding:10px;border-radius:6px;margin:10px 0;text-align:center;font-size:15px;}
+.note{margin-top:10px;color:#555;text-align:center;font-size:13px}
+</style>
+</head>
+<body>
+<h1>油耗计算器<br><span>大鹏制作</span></h1>
+
+<table class="input">
+<tr>
+<th>加油金额（元）</th>
+<th>加油单价（元）</th>
+<th>行驶里程（公里）</th>
+<th>加油量（升）</th>
+</tr>
+<tr>
+<td><input id="money" type="number" step="0.01" placeholder="输入金额"></td>
+<td><input id="price" type="number" step="0.01" placeholder="油价"></td>
+<td><input id="km" type="number" step="0.01" placeholder="本次里程"></td>
+<td><span id="litre">--</span></td>
+</tr>
+</table>
+
+<table class="result-top">
+<tr>
+<th>元/公里</th>
+<th>升/公里</th>
+<th>升/百公里</th>
+</tr>
+<tr>
+<td><span id="costPerKm">--</span></td>
+<td><span id="litrePerKm">--</span></td>
+<td><span id="fuel100">--</span></td>
+</tr>
+</table>
+
+<div class="btn-area">
+<button id="saveBtn">保存本条记录</button>
+<button id="exportCsvBtn">导出Excel</button>
+<button id="exportTxtBtn">导出TXT</button>
+<br>
+<button id="exportBtn">导出备份(JSON)</button>
+<button id="importBtn">导入备份</button>
+<button id="clearAllBtn">清空全部</button>
+<input type="file" id="fileInput" accept=".json" style="display:none;">
+</div>
+
+<div class="stats">
+汇总统计｜总里程：<span id="totalKm">0</span> km｜总油量：<span id="totalL">0</span> L｜平均油耗：<span id="avgFuel">0</span> L/100km
+</div>
+
+<div class="history-title">📋 加油记录汇总</div>
+<table id="historyTable">
+<thead>
+<tr>
+<th>日期</th>
+<th>加油金额(元)</th>
+<th>加油单价（元）</th>
+<th>行驶里程(km)</th>
+<th>加油量(L)</th>
+<th>元/公里</th>
+<th>升/公里</th>
+<th>升/百公里</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody id="historyBody"></tbody>
+</table>
+
+<div class="note">💡 注：只输入红色部分内容即可。加满油记录数据更准确。电脑手机独立记录，需使用json文件迁移数据。电脑端导出默认保存下载目录，手机端导出自动保存到Download文件夹。有不明之处或好的建议请联系作者。后期更新电车电耗计算。敬请期待！</div>
+
+<script>
+const _0x4b2c=['money','price','km','litre','costPerKm','litrePerKm','fuel100','saveBtn','clearAllBtn','historyBody','totalKm','totalL','avgFuel','fuelRecords','exportBtn','importBtn','fileInput','exportCsvBtn','exportTxtBtn'];
+const _0x7d1f=(a,b)=>{return a[b];};
+let fuelList=JSON.parse(localStorage.getItem(_0x4b2c[13]))||[];
+const moneyInput=document.getElementById(_0x4b2c[0]);
+const priceInput=document.getElementById(_0x4b2c[1]);
+const kmInput=document.getElementById(_0x4b2c[2]);
+const litreSpan=document.getElementById(_0x4b2c[3]);
+const costPerKmSpan=document.getElementById(_0x4b2c[4]);
+const litrePerKmSpan=document.getElementById(_0x4b2c[5]);
+const fuel100Span=document.getElementById(_0x4b2c[6]);
+const saveBtn=document.getElementById(_0x4b2c[7]);
+const clearAllBtn=document.getElementById(_0x4b2c[8]);
+const historyBody=document.getElementById(_0x4b2c[9]);
+const totalKmSpan=document.getElementById(_0x4b2c[10]);
+const totalLSpan=document.getElementById(_0x4b2c[11]);
+const avgFuelSpan=document.getElementById(_0x4b2c[12]);
+const exportBtn=document.getElementById(_0x4b2c[14]);
+const importBtn=document.getElementById(_0x4b2c[15]);
+const fileInput=document.getElementById(_0x4b2c[16]);
+const exportCsvBtn=document.getElementById(_0x4b2c[17]);
+const exportTxtBtn=document.getElementById(_0x4b2c[18]);
+
+function calc(){
+    const m=Number(moneyInput.value);
+    const p=Number(priceInput.value);
+    const k=Number(kmInput.value);
+    if(!m||!p||!k){
+        litreSpan.textContent="--";
+        costPerKmSpan.textContent="--";
+        litrePerKmSpan.textContent="--";
+        fuel100Span.textContent="--";
+        return;
+    }
+    const L=m/p;
+    const yuanKm=m/k;
+    const lKm=L/k;
+    const l100=lKm*100;
+    litreSpan.textContent=L.toFixed(2);
+    costPerKmSpan.textContent=yuanKm.toFixed(3);
+    litrePerKmSpan.textContent=lKm.toFixed(4);
+    fuel100Span.textContent=l100.toFixed(2);
+}
+
+function renderList(){
+    historyBody.innerHTML="";
+    let totalKm=0;
+    let totalL=0;
+    fuelList.forEach((item,index)=>{
+        totalKm+=Number(item.km);
+        totalL+=Number(item.litre);
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+            <td>${item.date}</td>
+            <td>${item.money}</td>
+            <td>${item.price}</td>
+            <td>${item.km}</td>
+            <td>${item.litre}</td>
+            <td>${item.yuanPerKm}</td>
+            <td>${item.litrePerKm}</td>
+            <td>${item.fuel100}</td>
+            <td><button class="del-btn" onclick="delRecord(${index})">删除</button></td>
+        `;
+        historyBody.appendChild(tr);
+    })
+    totalKmSpan.textContent=totalKm.toFixed(1);
+    totalLSpan.textContent=totalL.toFixed(2);
+    const avg=totalKm>0?(totalL/totalKm*100).toFixed(2):0;
+    avgFuelSpan.textContent=avg;
+}
+
+window.delRecord=function(idx){
+    fuelList.splice(idx,1);
+    localStorage.setItem(_0x4b2c[13],JSON.stringify(fuelList));
+    renderList();
+}
+
+saveBtn.onclick=function(){
+    const m=Number(moneyInput.value);
+    const p=Number(priceInput.value);
+    const k=Number(kmInput.value);
+    if(!m||!p||!k){
+        alert("请完整填写加油金额、加油单价、行驶里程！");
+        return;
+    }
+    const L=m/p;
+    const yuanKm=m/k;
+    const lKm=L/k;
+    const l100=(L/k*100).toFixed(2);
+    const now=new Date().toLocaleDateString();
+    fuelList.push({
+        date:now,
+        money:m,
+        price:p,
+        km:k,
+        litre:L.toFixed(2),
+        yuanPerKm:yuanKm.toFixed(3),
+        litrePerKm:lKm.toFixed(4),
+        fuel100:l100
+    });
+    localStorage.setItem(_0x4b2c[13],JSON.stringify(fuelList));
+    renderList();
+    moneyInput.value="";
+    priceInput.value="";
+    kmInput.value="";
+    calc();
+}
+
+clearAllBtn.onclick=function(){
+    if(confirm("确定清空所有记录？无法恢复！")){
+        fuelList=[];
+        localStorage.removeItem(_0x4b2c[13]);
+        renderList();
+    }
+}
+
+function getTimeName(){
+    let d=new Date();
+    let year=d.getFullYear();
+    let mon=(d.getMonth()+1).toString().padStart(2,"0");
+    let day=d.getDate().toString().padStart(2,"0");
+    let h=d.getHours().toString().padStart(2,"0");
+    let min=d.getMinutes().toString().padStart(2,"0");
+    let sec=d.getSeconds().toString().padStart(2,"0");
+    return `${year}${mon}${day}_${h}${min}${sec}`;
+}
+
+function triggerDownload(filename, content, mime){
+    const blob=new Blob([content],{type:mime});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    alert("✅导出完成！文件保存在系统【下载】文件夹。");
+}
+
+exportCsvBtn.onclick=function(){
+    if(!fuelList.length){alert("暂无记录，请先保存加油记录！");return;}
+    let csv="\uFEFF加油记录汇总\r\n";
+    csv+="日期,加油金额(元),加油单价（元）,行驶里程(km),加油量(L),元/公里,升/公里,升/百公里\r\n";
+    fuelList.forEach(function(it){
+        csv+=[it.date,it.money,it.price,it.km,it.litre,it.yuanPerKm,it.litrePerKm,it.fuel100].join(",")+"\r\n";
+    });
+    let name="油耗记录_"+getTimeName()+".csv";
+    triggerDownload(name, csv, "text/csv;charset=utf-8");
+}
+
+exportTxtBtn.onclick=function(){
+    if(!fuelList.length){alert("暂无记录，请先保存加油记录！");return;}
+    let totalKm=0,totalL=0;
+    fuelList.forEach(function(it){totalKm+=Number(it.km);totalL+=Number(it.litre);});
+    let txt="加油记录汇总\n";
+    txt+="导出时间："+new Date().toLocaleString()+"\n";
+    txt+="记录条数："+fuelList.length+" 条\n";
+    txt+="=========================================\n\n";
+
+    fuelList.forEach(function(it){
+        txt += `【加油记录】
+日期：${it.date}
+加油金额：${it.money} 元
+加油单价：${it.price} 元/升
+行驶里程：${it.km} km
+加油量：${it.litre} L
+每公里成本：${it.yuanPerKm} 元/公里
+每公里耗油量：${it.litrePerKm} 升/公里
+百公里油耗：${it.fuel100} L/100km
+----------------------------------------
+`;
+    });
+
+    txt += `=========================================
+汇总统计
+总行驶里程：${totalKm.toFixed(1)} km
+总加油量：${totalL.toFixed(2)} L
+平均油耗：${(totalKm>0?(totalL/totalKm*100).toFixed(2):"0")} L/100km
+`;
+    let name="油耗记录_"+getTimeName()+".txt";
+    triggerDownload(name, txt, "text/plain;charset=utf-8");
+}
+
+exportBtn.onclick=function(){
+    if(!fuelList.length){alert("暂无记录，请先保存加油记录！");return;}
+    let name="油耗备份_"+getTimeName()+".json";
+    triggerDownload(name, JSON.stringify(fuelList,null,2), "application/json");
+}
+
+importBtn.onclick=function(){fileInput.click();}
+fileInput.onchange=function(e){
+    const file=e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=function(event){
+        try{
+            const data=JSON.parse(event.target.result);
+            if(Array.isArray(data)){
+                fuelList=data;
+                localStorage.setItem(_0x4b2c[13],JSON.stringify(fuelList));
+                renderList();
+                alert("✅导入成功！");
+            }else{
+                alert("文件格式不对！");
+            }
+        }catch(err){
+            alert("读取文件失败！");
+        }
+    };
+    reader.readAsText(file);
+}
+
+moneyInput.oninput=calc;
+priceInput.oninput=calc;
+kmInput.oninput=calc;
+renderList();
+</script>
+</body>
+</html>
