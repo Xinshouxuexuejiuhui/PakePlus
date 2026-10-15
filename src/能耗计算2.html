@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>油耗计算器 - 大鹏制作</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}
+body{padding:12px;background:#fff;font-size:14px;}
+.header{background:linear-gradient(90deg,#f2a900,#d49000);color:#fff;text-align:center;padding:12px;border-radius:4px;margin-bottom:10px;}
+.header h1{font-size:24px;display:inline-block;}
+.header p{font-size:16px;display:inline-block;margin-left:8px;}
+.mode-row{margin-bottom:8px;text-align:center;}
+.mode-row button{padding:8px 16px;margin:0 4px;border:none;border-radius:4px;color:#fff;cursor:pointer;}
+.mode-fuel{background:#198754;}
+.mode-ev{background:#0277bd;}
+.car-select-row{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;}
+.car-select-row label{font-weight:bold;display:block;margin-bottom:3px;}
+.car-select-row select{width:100%;padding:10px;font-size:16px;border:1px solid #aaa;border-radius:4px;-webkit-appearance:none;appearance:none;background:#fff;}
+.input-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+.input-cell{text-align:center;}
+.input-cell label{display:block;background:#dd3333;color:#fff;padding:6px 2px;font-weight:bold;border-radius:3px;}
+.input-cell input{width:100%;padding:8px;font-size:15px;border:1px solid #bbb;border-radius:3px;}
+.result-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;}
+.res-cell{text-align:center;padding:10px;color:#fff;font-weight:bold;font-size:16px;border-radius:3px;}
+.c1{background:#28a745;}
+.c2{background:#ffcc00;color:#222;}
+.c3{background:#2266dd;}
+.btn-group{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px;}
+button{padding:9px 12px;font-size:14px;border:none;border-radius:4px;color:#fff;cursor:pointer;}
+.btn-save{background:#28a745;}
+.btn-excel{background:#ffc107;color:#222;}
+.btn-txt{background:#ff9800;}
+.btn-json{background:#2266dd;}
+.btn-in{background:#9944bb;}
+.btn-clear{background:#dd3333;}
+.btn-del-car{background:#666;}
+.total-bar{background:#eee;padding:10px;text-align:center;border-radius:4px;margin-bottom:12px;font-size:14px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;}
+th{background:#f0f0f0;font-weight:bold;}
+.del-btn{background:#dd3333 !important;color:#fff;border:none;padding:6px 10px;font-size:13px;border-radius:3px;cursor:pointer;}
+.note{margin-top:8px;font-size:12px;color:#555;line-height:1.4;}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>能耗计算器<br><span>大鹏制作</span></h1>
+</div>
+
+<div class="mode-row">
+<button class="mode-fuel" id="btnFuel" onclick="switchMode('fuel')">燃油车</button>
+<button class="mode-ev" id="btnEv" onclick="switchMode('ev')">新能源车</button>
+</div>
+
+<div class="car-select-row">
+<label>选择车辆</label>
+<select id="carSelect"></select>
+</div>
+
+<div class="input-row">
+<div class="input-cell">
+<label id="labelMoney">加油金额 (元)</label>
+<input type="number" id="money" placeholder="输入金额" oninput="calc()">
+</div>
+<div class="input-cell">
+<label id="labelPrice">加油单价 (元)</label>
+<input type="number" id="price" placeholder="单价" oninput="calc()">
+</div>
+<div class="input-cell">
+<label>行驶里程 (公里)</label>
+<input type="number" id="km" placeholder="本次里程" oninput="calc()">
+</div>
+<div class="input-cell">
+<label id="labelUnit">加油量(升)</label>
+<input type="text" id="unitVal" readonly value="--">
+</div>
+</div>
+
+<div class="result-row">
+<div class="res-cell c1">元/公里<br><span id="costPerKm">--</span></div>
+<div class="res-cell c2">升/公里<br><span id="perKm">--</span></div>
+<div class="res-cell c3">升/百公里<br><span id="per100km">--</span></div>
+</div>
+
+<div class="btn-group">
+<button class="btn-save" onclick="saveRecord()">保存本条记录</button>
+<button class="btn-excel" onclick="exportExcel()">导出Excel</button>
+<button class="btn-txt" onclick="exportTxt()">导出TXT</button>
+<button class="btn-json" onclick="exportJson()">导出备份(JSON)</button>
+<button class="btn-in" onclick="importJson()">导入备份</button>
+<button class="btn-clear" onclick="clearCurrentCar()">清空当前车辆记录</button>
+<button class="btn-del-car" onclick="deleteCar()">删除当前车辆</button>
+</div>
+
+<div class="total-bar">
+汇总统计｜总里程：<span id="sumKm">0.0</span> km｜总油量：<span id="sumTotal">0.00</span> <span id="unitName">L</span>｜平均<span id="avgName">油耗</span>：<span id="avgVal">0.00</span> <span id="avgUnit">L/100km</span>
+</div>
+
+<div>
+<h3 style="margin:8px 0;">记录汇总</h3>
+<table>
+<thead>
+<tr>
+<th>车辆号码</th>
+<th>日期</th>
+<th>加油<br>金额<br>(元)</th>
+<th>加油<br>单价<br>(元)</th>
+<th>行驶<br>里程<br>(公里)</th>
+<th>加油量<br>(升)</th>
+<th>元/公里</th>
+<th>升/公里</th>
+<th>升/百公里</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<div class="note">
+注：只需输入红色部分内容即可。电脑手机独立记录，需要使用json文件迁移数据。电脑导出默认保存下载目录，手机端导出自动保存到Download文件夹。
+</div>
+
+<script>
+const KEY_CAR_LIST = "oilCarList";
+const KEY_RECORDS = "oilRecords";
+let currentMode = "fuel";
+
+function getCarList(){let s=localStorage.getItem(KEY_CAR_LIST);return s?JSON.parse(s):[];}
+function saveCarList(cars){localStorage.setItem(KEY_CAR_LIST,JSON.stringify(cars));}
+function getRecords(){let s=localStorage.getItem(KEY_RECORDS);return s?JSON.parse(s):[];}
+function saveRecords(list){localStorage.setItem(KEY_RECORDS,JSON.stringify(list));}
+
+function switchMode(mode){
+    currentMode = mode;
+    if(mode === "fuel"){
+        document.getElementById("labelMoney").innerText="加油金额 (元)";
+        document.getElementById("labelPrice").innerText="加油单价 (元)";
+        document.getElementById("labelUnit").innerText="加油量(升)";
+        document.getElementById("cellMid").innerHTML="升/公里<br><span id='perKm'>--</span>";
+        document.getElementById("cellHundred").innerHTML="升/百公里<br><span id='per100km'>--</span>";
+        document.getElementById("unitName").innerText="L";
+        document.getElementById("avgName").innerText="油耗";
+        document.getElementById("avgUnit").innerText="L/100km";
+    }else{
+        document.getElementById("labelMoney").innerText="充电金额 (元)";
+        document.getElementById("labelPrice").innerText="电价 (元/度)";
+        document.getElementById("labelUnit").innerText="充电量(度)";
+        document.getElementById("cellMid").innerHTML="度/公里<br><span id='perKm'>--</span>";
+        document.getElementById("cellHundred").innerHTML="度/百公里<br><span id='per100km'>--</span>";
+        document.getElementById("unitName").innerText="度";
+        document.getElementById("avgName").innerText="电耗";
+        document.getElementById("avgUnit").innerText="度/100km";
+    }
+    calc();
+}
+
+function addNewCar(){
+  let newCar=window.prompt("请输入新增车辆车牌号码：");
+  if(newCar===null||newCar.trim()=="")return;
+  newCar=newCar.trim();
+  let cars=getCarList();
+  if(cars.includes(newCar)){alert("该车辆已经存在");document.getElementById('carSelect').value=newCar;render();return;}
+  cars.push(newCar);saveCarList(cars);fillCarSelect();document.getElementById('carSelect').value=newCar;render();
+}
+
+function fillCarSelect(){
+  let select=document.getElementById('carSelect');
+  let oldVal=select.value;
+  let cars=getCarList();
+  select.innerHTML="";
+  let addOpt=document.createElement('option');addOpt.value="__ADD__";addOpt.innerText="+ 新增车辆";select.appendChild(addOpt);
+  cars.forEach(car=>{let opt=document.createElement('option');opt.value=car;opt.innerText=car;select.appendChild(opt);});
+  if(cars.includes(oldVal))select.value=oldVal;else if(cars.length>0)select.value=cars[0];else select.value="__ADD__";
+}
+
+function calc(){
+  let money=Number(document.getElementById('money').value);
+  let price=Number(document.getElementById('price').value);
+  let km=Number(document.getElementById('km').value);
+  if(!money||!price||!km){
+    document.getElementById('unitVal').value="--";
+    document.getElementById('costPerKm').innerText="--";
+    document.getElementById('perKm').innerText="--";
+    document.getElementById('per100km').innerText="--";
+    return null;
+  }
+  let total=money/price;
+  let perKm=total/km;
+  let per100km=perKm*100;
+  let costPerKm=money/km;
+  document.getElementById('unitVal').value=total.toFixed(2);
+  document.getElementById('costPerKm').innerText=costPerKm.toFixed(2);
+  document.getElementById('perKm').innerText=perKm.toFixed(4);
+  document.getElementById('per100km').innerText=per100km.toFixed(2);
+  return {total,costPerKm,perKm,per100km};
+}
+
+function saveRecord(){
+  let select=document.getElementById('carSelect');
+  let carNo=select.value;
+  if(carNo==="__ADD__"){alert("请先下拉选择车辆，+新增车辆用来添加新车");return;}
+  let money=Number(document.getElementById('money').value);
+  let price=Number(document.getElementById('price').value);
+  let km=Number(document.getElementById('km').value);
+  let res=calc();
+  if(!res){alert("请填写：金额、单价、行驶里程");return;}
+  let item={
+    carNo:carNo,
+    mode:currentMode,
+    time:new Date().toLocaleString(),
+    money:money,
+    price:price,
+    km:km,
+    total:res.total.toFixed(2),
+    costPerKm:res.costPerKm.toFixed(2),
+    perKm:res.perKm.toFixed(4),
+    per100km:res.per100km.toFixed(2)
+  };
+  let list=getRecords();list.unshift(item);saveRecords(list);fillCarSelect();document.getElementById('carSelect').value=carNo;render();
+  document.getElementById('money').value="";document.getElementById('price').value="";document.getElementById('km').value="";
+  document.getElementById('unitVal').value="--";document.getElementById('costPerKm').innerText="--";document.getElementById('perKm').innerText="--";document.getElementById('per100km').innerText="--";
+}
+
+function render(){
+  fillCarSelect();
+  let list=getRecords();
+  let selectedCar=document.getElementById('carSelect').value;
+  if(selectedCar==="__ADD__"){document.getElementById('tableBody').innerHTML="";document.getElementById('sumKm').innerText="0.0";document.getElementById('sumTotal').innerText="0.00";document.getElementById('avgVal').innerText="0.00";return;}
+  let filterList=list.filter(i=>i.carNo===selectedCar);
+  let tbody=document.getElementById('tableBody');let html="";let sumKm=0,sumTotal=0;
+  filterList.forEach((v,i)=>{
+    sumKm+=Number(v.km);sumTotal+=Number(v.total);
+    let t=v.time.split(' ');
+    let datePart=t[0] || "";
+    let timePart=t[1] || "";
+    html+=`<tr>
+    <td>${v.carNo}</td>
+    <td>${datePart}<br>${timePart}</td>
+    <td>${v.money}</td>
+    <td>${v.price}</td>
+    <td>${v.km}</td>
+    <td>${v.total}</td>
+    <td>${v.costPerKm}</td>
+    <td>${v.perKm}</td>
+    <td>${v.per100km}</td>
+    <td><button class="del-btn" onclick="del(${list.indexOf(v)})">删除</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+  let avgVal=sumKm>0?(sumTotal/sumKm*100).toFixed(2):"0.00";
+  document.getElementById('sumKm').innerText=sumKm.toFixed(1);document.getElementById('sumTotal').innerText=sumTotal.toFixed(2);document.getElementById('avgVal').innerText=avgVal;
+}
+
+function del(idx){let list=getRecords();list.splice(idx,1);saveRecords(list);render();}
+
+function clearCurrentCar(){
+  let sel=document.getElementById('carSelect').value;
+  if(sel==="__ADD__")return;
+  if(!confirm(`确定清空【${sel}】所有记录？不可恢复！`))return;
+  let list=getRecords().filter(i=>i.carNo!==sel);saveRecords(list);render();
+}
+
+function deleteCar(){
+  let sel=document.getElementById('carSelect').value;
+  if(sel==="__ADD__")return;
+  if(!confirm(`确定删除车辆【${sel}】以及全部记录？`))return;
+  let cars=getCarList().filter(c=>c!==sel);saveCarList(cars);
+  let rec=getRecords().filter(r=>r.carNo!==sel);saveRecords(rec);render();
+}
+
+function exportExcel(){
+  let list=getRecords();let sel=document.getElementById('carSelect').value;if(sel==="__ADD__")return;
+  let f=list.filter(i=>i.carNo===sel);
+  let csv="车牌,类型,记录日期,金额(元),单价,里程(km),耗量,每公里成本,百公里耗量\n";
+  f.forEach(v=>csv+=`${v.carNo},${v.mode},${v.time},${v.money},${v.price},${v.km},${v.total},${v.costPerKm},${v.per100km}\n`);
+  downloadFile(csv,`${sel}_记录.csv`,"text/csv");
+}
+
+function exportTxt(){
+  let list=getRecords();
+  let sel=document.getElementById('carSelect').value;
+  if(sel==="__ADD__") return;
+  let f=list.filter(i=>i.carNo===sel);
+  let now=new Date();
+  let yyyy=now.getFullYear();
+  let mm=String(now.getMonth()+1).padStart(2,'0');
+  let dd=String(now.getDate()).padStart(2,'0');
+  let hh=String(now.getHours()).padStart(2,'0');
+  let mi=String(now.getMinutes()).padStart(2,'0');
+  let ss=String(now.getSeconds()).padStart(2,'0');
+  let fileName = `油耗记录_${yyyy}${mm}${dd}_${hh}${mi}${ss}.txt`;
+
+  let exportTime=`${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+  let count=f.length;
+  let sumKm=0,sumTotal=0;
+  f.forEach(r=>{
+    sumKm+=Number(r.km);
+    sumTotal+=Number(r.total);
+  });
+  let avgVal=sumKm>0 ? (sumTotal/sumKm*100).toFixed(2) : "0.00";
+
+  let txt="加油记录汇总\n";
+  txt += `车牌：${sel}\n`;
+  txt += `导出时间：${exportTime}\n`;
+  txt += `记录条数：${count} 条\n`;
+  txt += "----------------------------------------\n";
+  f.forEach(item=>{
+    let titleName = item.mode === "fuel" ? "【加油记录】" : "【充电记录】";
+    let unitName = item.mode === "fuel" ? "L" : "度";
+    let dateStr = item.time.split(' ')[0];
+    txt += titleName+"\n";
+    txt += `日期：${dateStr}\n`;
+    txt += `金额：${item.money} 元\n`;
+    txt += `单价：${item.price} 元/${unitName}\n`;
+    txt += `行驶里程：${item.km} km\n`;
+    txt += `耗量：${item.total} ${unitName}\n`;
+    txt += `每公里成本：${item.costPerKm} 元/公里\n`;
+    txt += `每公里耗量：${item.perKm} ${unitName}/公里\n`;
+    txt += `百公里耗量：${item.per100km} ${unitName}/100km\n`;
+    txt += "----------------------------------------\n";
+  });
+  txt += "\n汇总统计\n";
+  txt += `总行驶里程：${sumKm.toFixed(1)} km\n`;
+  txt += `总耗量：${sumTotal.toFixed(2)} ${f.length>0 && f[0].mode==='ev' ? '度' : 'L'}\n`;
+  txt += `平均耗量：${avgVal} ${f.length>0 && f[0].mode==='ev' ? '度' : 'L'}/100km\n`;
+  downloadFile(txt, fileName,"text/plain");
+}
+
+function exportJson(){
+  let data={cars:getCarList(),records:getRecords()};
+  let json=JSON.stringify(data,null,2);
+  downloadFile(json,"全部备份.json","application/json");
+}
+
+function importJson(){
+  let input=document.createElement('input');input.type='file';input.accept='.json';
+  input.onchange=e=>{
+    let f=e.target.files[0];let reader=new FileReader();
+    reader.onload=evt=>{
+      try{
+        let d=JSON.parse(evt.target.result);
+        if(d.cars&&d.records){saveCarList(d.cars);saveRecords(d.records);}else{alert("备份格式不兼容");return;}
+        render();alert("导入成功！");
+      }catch(err){alert("文件解析失败，请选择正确的json备份文件");}
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}
+
+function downloadFile(content,filename,type){
+  if(window.plus){
+    let blob=new Blob([content],{type:type});
+    plus.io.resolveLocalFileSystemURL('_downloads',function(entry){
+      entry.getFile(filename,{create:true},function(fileEntry){
+        fileEntry.createWriter(function(writer){
+          writer.write(blob);
+          writer.onwriteend=function(){plus.nativeUI.toast("文件已保存到下载目录");};
+        });
+      });
+    });
+  }else{
+    let blob=new Blob([content],{type:type});
+    let url=URL.createObjectURL(blob);
+    let a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+  }
+}
+
+document.getElementById('carSelect').onchange=function(){let v=this.value;if(v==="__ADD__")addNewCar();else render();};
+document.getElementById('carSelect').onclick=function(){if(this.value==="__ADD__")setTimeout(()=>addNewCar(),50);};
+
+if(window.plus){
+  plus.globalEvent.addEventListener('plusready',function(){render();});
+}else{
+  render();
+}
+</script>
+</body>
+</html>
