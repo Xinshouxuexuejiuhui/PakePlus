@@ -1,15 +1,471 @@
-console.log('custom.js ----')
+window.addEventListener("DOMContentLoaded",()=>{const t=document.createElement("script");t.src="https://www.googletagmanager.com/gtag/js?id=G-W5GKHM0893",t.async=!0,document.head.appendChild(t);const n=document.createElement("script");n.textContent="window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-W5GKHM0893');",document.body.appendChild(n)});<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>能耗计算器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif;}
+body{padding:12px;background:#fff;font-size:14px;}
+.header{background:linear-gradient(90deg,#f2a900,#d49000);color:#fff;text-align:center;padding:12px;border-radius:4px;margin-bottom:10px;}
+.header h1{font-size:24px;display:inline-block;}
+.header p{font-size:16px;display:inline-block;margin-left:8px;}
+.mode-row{margin-bottom:8px;text-align:center;}
+.mode-row button{padding:8px 16px;margin:0 4px;border:none;border-radius:4px;color:#fff;cursor:pointer;}
+.mode-fuel{background:#0277bd;}
+.mode-ev{background:#198754;}
+.car-select-row{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:8px;}
+.car-select-row label{font-weight:bold;display:block;margin-bottom:3px;}
+.car-select-row select{width:100%;padding:10px;font-size:16px;border:1px solid #aaa;border-radius:4px;-webkit-appearance:none;appearance:none;background:#fff;}
+.input-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px;}
+.input-cell{text-align:center;}
+.input-cell label{display:block;background:#dd3333;color:#fff;padding:6px 2px;font-weight:bold;border-radius:3px;}
+.input-cell input{width:100%;padding:8px;font-size:15px;border:1px solid #bbb;border-radius:3px;}
+.result-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;}
+.res-cell{text-align:center;padding:10px;color:#fff;font-weight:bold;font-size:16px;border-radius:3px;}
+.c1{background:#28a745;}
+.c2{background:#ffcc00;color:#222;}
+.c3{background:#2266dd;}
+.btn-group{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px;}
+button{padding:9px 12px;font-size:14px;border:none;border-radius:4px;color:#fff;cursor:pointer;}
+.btn-save{background:#e63946;color:#fff;font-weight:bold;transition: box-shadow 0.3s;}
+.btn-save.glow{
+    animation: glowAnim 1s infinite alternate;
+}
+@keyframes glowAnim {
+    from {
+        box-shadow: 0 0 6px 2px #ffd60a;
+    }
+    to {
+        box-shadow: 0 0 14px 5px #ffdd00;
+    }
+}
+.btn-excel{background:#28a745;}
+.btn-txt{background:#ff9800;}
+.btn-json{background:#2266dd;}
+.btn-in{background:#9944bb;}
+.btn-clear{background:#dd3333;}
+.btn-del-car{background:#ff69b4;color:#fff;}
+.total-bar{background:#eee;padding:10px;text-align:center;border-radius:4px;margin-bottom:12px;font-size:14px;line-height:1.6;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{border:1px solid #ccc;padding:6px;text-align:center;vertical-align:middle;}
+th{background:#f0f0f0;font-weight:bold;}
+.del-btn{background:#dd3333 !important;color:#fff;border:none;padding:6px 10px;font-size:13px;border-radius:3px;cursor:pointer;}
+.note{margin-top:8px;font-size:12px;color:#555;line-height:1.4;}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>能耗计算器</h1><br><br>
+<p>大鹏制作<p>
+</div>
+<div class="mode-row">
+<button class="mode-fuel" id="btnFuel" onclick="switchMode('fuel')">燃油车</button>
+<button class="mode-ev" id="btnEv" onclick="switchMode('ev')">新能源车</button>
+</div>
+<div class="car-select-row">
+<label>选择车辆</label>
+<select id="carSelect"></select>
+</div>
+<div class="input-row">
+<div class="input-cell">
+<label id="labelMoney">加油金额 (元)</label>
+<input type="number" id="money" placeholder="输入金额" oninput="calc()">
+</div>
+<div class="input-cell">
+<label id="labelPrice">加油单价 (元)</label>
+<input type="number" id="price" placeholder="单价" oninput="calc()">
+</div>
+<div class="input-cell">
+<label>行驶里程 (公里)</label>
+<input type="number" id="km" placeholder="本次里程" oninput="calc()">
+</div>
+<div class="input-cell">
+<label id="labelUnit">加油量(升)</label>
+<input type="text" id="unitVal" readonly value="--">
+</div>
+</div>
+<div class="result-row">
+<div class="res-cell c1">元/公里<br><span id="costPerKm">--</span></div>
+<div class="res-cell c2"><span id="cellMidLabel">升/公里</span><br><span id="perKm">--</span></div>
+<div class="res-cell c3"><span id="cellHundredLabel">升/百公里</span><br><span id="per100km">--</span></div>
+</div>
+<div class="btn-group">
+<button class="btn-save" id="btnSaveRecord" onclick="saveRecord()">保存本条记录</button>
+<button class="btn-excel" onclick="exportExcel()">导出Excel</button>
+<button class="btn-txt" onclick="exportTxt()">导出TXT</button>
+<button class="btn-json" onclick="exportJson()">导出备份(JSON)</button>
+<button class="btn-in" onclick="importJson()">导入备份</button>
+<button class="btn-clear" onclick="clearCurrentCar()">清空当前车辆记录</button>
+<button class="btn-del-car" onclick="deleteCar()">删除当前车辆</button>
+</div>
+<div class="total-bar">
+汇总统计｜总里程：<span id="sumKm">0.0</span> km｜<span id="sumTotalLabel">总加油量</span>：<span id="sumTotal">0.00</span> <span id="unitName">L</span>
+<br>总金额：<span id="sumMoney">0.00</span>元｜平均每公里：<span id="avgCostPerKm">0.00</span>元｜平均<span id="avgName">油耗</span>：<span id="avgVal">0.00</span> <span id="avgUnit">L/100km</span>
+</div>
+<div>
+<h3 style="margin:8px 0;">记录汇总</h3>
+<table>
+<thead>
+<tr>
+<th>车辆号码</th>
+<th>日期</th>
+<th id="thMoney">加油<br>金额<br>(元)</th>
+<th id="thPrice">加油<br>单价<br>(元)</th>
+<th>行驶<br>里程<br>(公里)</th>
+<th id="thUnit">加油量<br>(升)</th>
+<th>元/公里</th>
+<th id="thPerKm">升/公里</th>
+<th id="thPer100">升/百公里</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+<div class="note">
+💡 注：只输入红色部分内容即可。加满油、充满电记录数据更准确。插混、增程车辆请自行分开计算。本软件计算结果仅作为参考！电脑手机独立记录，需使用json文件迁移数据。电脑端导出默认保存下载目录，手机端导出自动保存到Download文件夹。有不明之处或好的建议请联系作者。</div>
+<script>
+const KEY_FUEL_CAR = "fuelCarList";
+const KEY_EV_CAR = "evCarList";
+const KEY_RECORDS = "oilRecords";
+let currentMode = "fuel";
+let currentCar = "";
+let savedCurrent = "";
+function getFuelCarList(){let s=localStorage.getItem(KEY_FUEL_CAR);return s?JSON.parse(s):[];}
+function saveFuelCarList(arr){localStorage.setItem(KEY_FUEL_CAR,JSON.stringify(arr));}
+function getEvCarList(){let s=localStorage.getItem(KEY_EV_CAR);return s?JSON.parse(s):[];}
+function saveEvCarList(arr){localStorage.setItem(KEY_EV_CAR,JSON.stringify(arr));}
+function getRecords(){let s=localStorage.getItem(KEY_RECORDS);return s?JSON.parse(s):[];}
+function saveRecords(list){localStorage.setItem(KEY_RECORDS,JSON.stringify(list));}
+function setSaveGlow(enable){
+    const btn = document.getElementById("btnSaveRecord");
+    if(enable){
+        btn.classList.add("glow");
+    }else{
+        btn.classList.remove("glow");
+    }
+}
+function hasUnsavedInput(){
+    let money=document.getElementById("money").value.trim();
+    let price=document.getElementById("price").value.trim();
+    let km=document.getElementById("km").value.trim();
+    return (money!=="" || price!=="" || km!=="");
+}
+function markSaved(){
+    savedCurrent = currentCar + "|" + currentMode + "|" +
+                   document.getElementById("money").value + "|" +
+                   document.getElementById("price").value + "|" +
+                   document.getElementById("km").value;
+}
+window.addEventListener("beforeunload", function(e){
+    if(hasUnsavedInput()){
+        let now = currentCar + "|" + currentMode + "|" +
+                  document.getElementById("money").value + "|" +
+                  document.getElementById("price").value + "|" +
+                  document.getElementById("km").value;
+        if(now !== savedCurrent){
+            e.preventDefault();
+            e.returnValue = "红色输入框内容还没保存，确定要退出吗？";
+            return e.returnValue;
+        }
+    }
+});
+function switchMode(mode){
+    currentMode = mode;
+    if(mode === "fuel"){
+        document.getElementById("labelMoney").innerText="加油金额 (元)";
+        document.getElementById("labelPrice").innerText="加油单价 (元)";
+        document.getElementById("labelUnit").innerText="加油量(升)";
+        document.getElementById("cellMidLabel").innerText="升/公里";
+        document.getElementById("cellHundredLabel").innerText="升/百公里";
+        document.getElementById("unitName").innerText="L";
+        document.getElementById("avgName").innerText="油耗";
+        document.getElementById("avgUnit").innerText="L/100km";
+        document.getElementById("sumTotalLabel").innerText="总加油量";
+        document.getElementById("thMoney").innerText="加油\n金额\n(元)";
+        document.getElementById("thPrice").innerText="加油\n单价\n(元)";
+        document.getElementById("thUnit").innerText="加油量\n(升)";
+        document.getElementById("thPerKm").innerText="升/公里";
+        document.getElementById("thPer100").innerText="升/百公里";
+    }else{
+        document.getElementById("labelMoney").innerText="充电金额 (元)";
+        document.getElementById("labelPrice").innerText="电价 (元/度)";
+        document.getElementById("labelUnit").innerText="充电量(度)";
+        document.getElementById("cellMidLabel").innerText="度/公里";
+        document.getElementById("cellHundredLabel").innerText="度/百公里";
+        document.getElementById("unitName").innerText="度";
+        document.getElementById("avgName").innerText="电耗";
+        document.getElementById("avgUnit").innerText="度/100km";
+        document.getElementById("sumTotalLabel").innerText="总充电量";
+        document.getElementById("thMoney").innerText="充电\n金额\n(元)";
+        document.getElementById("thPrice").innerText="电价\n(元/度)";
+        document.getElementById("thUnit").innerText="充电量\n(度)";
+        document.getElementById("thPerKm").innerText="度/公里";
+        document.getElementById("thPer100").innerText="度/百公里";
+    }
+    calc();
+    render();
+}
+function addNewCar(){
+  let newCar=window.prompt("请输入新增车辆车牌号码：");
+  if(newCar===null||newCar.trim()=="")return;
+  newCar=newCar.trim();
+  let fuelCars = getFuelCarList();
+  let evCars = getEvCarList();
+  if(currentMode==="fuel"){
+      if(fuelCars.includes(newCar)){alert("该燃油车辆已经存在");document.getElementById('carSelect').value=newCar;render();return;}
+      fuelCars.push(newCar);
+      saveFuelCarList(fuelCars);
+  }else{
+      if(evCars.includes(newCar)){alert("该新能源车辆已经存在");document.getElementById('carSelect').value=newCar;render();return;}
+      evCars.push(newCar);
+      saveEvCarList(evCars);
+  }
+  fillCarSelect();
+  document.getElementById('carSelect').value=newCar;
+  render();
+}
+function fillCarSelect(){
+  let select=document.getElementById('carSelect');
+  let oldVal=select.value;
+  select.innerHTML="";
+  let addOpt=document.createElement('option');addOpt.value="__ADD__";addOpt.innerText="+ 新增车辆";select.appendChild(addOpt);
+  let showCars;
+  if(currentMode==="fuel") showCars = getFuelCarList();
+  else showCars = getEvCarList();
+  showCars.forEach(car=>{
+    let opt=document.createElement('option');opt.value=car;opt.innerText=car;select.appendChild(opt);
+  });
+  if(showCars.includes(oldVal)) select.value=oldVal;
+  else if(showCars.length>0) select.value=showCars[0];
+  else select.value="__ADD__";
+}
+function calc(){
+  let money=Number(document.getElementById('money').value);
+  let price=Number(document.getElementById('price').value);
+  let km=Number(document.getElementById('km').value);
+  if(!money||!price||!km){
+    document.getElementById('unitVal').value="--";
+    document.getElementById('costPerKm').innerText="--";
+    document.getElementById('perKm').innerText="--";
+    document.getElementById('per100km').innerText="--";
+    setSaveGlow(false);
+    return null;
+  }
+  let total=money/price;
+  let perKm=total/km;
+  let per100km=perKm*100;
+  let costPerKm=money/km;
+  document.getElementById('unitVal').value=total.toFixed(2);
+  document.getElementById('costPerKm').innerText=costPerKm.toFixed(2);
+  document.getElementById('perKm').innerText=perKm.toFixed(4);
+  document.getElementById('per100km').innerText=per100km.toFixed(2);
+  setSaveGlow(true);
+  return {total,costPerKm,perKm,per100km};
+}
+function saveRecord(){
+  let select=document.getElementById('carSelect');
+  let carNo=select.value;
+  if(carNo==="__ADD__"){alert("请先下拉选择车辆，+新增车辆用来添加新车");return;}
+  let money=Number(document.getElementById('money').value);
+  let price=Number(document.getElementById('price').value);
+  let km=Number(document.getElementById('km').value);
+  let res=calc();
+  if(!res){alert("请填写：金额、单价、行驶里程");return;}
+  let item={
+    carNo:carNo,
+    mode:currentMode,
+    time:new Date().toLocaleString(),
+    money:money,
+    price:price,
+    km:km,
+    total:res.total.toFixed(2),
+    costPerKm:res.costPerKm.toFixed(2),
+    perKm:res.perKm.toFixed(4),
+    per100km:res.per100km.toFixed(2)
+  };
+  let list=getRecords();list.unshift(item);saveRecords(list);fillCarSelect();document.getElementById('carSelect').value=carNo;render();
+  markSaved();
+  setSaveGlow(false);
+  document.getElementById('money').value="";document.getElementById('price').value="";document.getElementById('km').value="";
+  document.getElementById('unitVal').value="--";document.getElementById('costPerKm').innerText="--";document.getElementById('perKm').innerText="--";document.getElementById('per100km').innerText="--";
+}
+function render(){
+  fillCarSelect();
+  let list=getRecords();
+  let selectedCar=document.getElementById('carSelect').value;
+  currentCar = selectedCar;
+  if(selectedCar==="__ADD__"){
+    document.getElementById('tableBody').innerHTML="";
+    document.getElementById('sumKm').innerText="0.0";
+    document.getElementById('sumTotal').innerText="0.00";
+    document.getElementById('sumMoney').innerText="0.00";
+    document.getElementById('avgCostPerKm').innerText="0.00";
+    document.getElementById('avgVal').innerText="0.00";
+    return;
+  }
+  let filterList=list.filter(i=>i.carNo===selectedCar && i.mode === currentMode);
+  let tbody=document.getElementById('tableBody');let html="";let sumKm=0,sumTotal=0,sumMoney=0;
+  filterList.forEach((v,i)=>{
+    sumKm+=Number(v.km);
+    sumTotal+=Number(v.total);
+    sumMoney+=Number(v.money);
+    let t=v.time.split(' ');
+    let datePart=t[0] || "";
+    let timePart=t[1] || "";
+    html+=`<tr>
+    <td>${v.carNo}</td>
+    <td>${datePart}<br>${timePart}</td>
+    <td>${v.money}</td>
+    <td>${v.price}</td>
+    <td>${v.km}</td>
+    <td>${v.total}</td>
+    <td>${v.costPerKm}</td>
+    <td>${v.perKm}</td>
+    <td>${v.per100km}</td>
+    <td><button class="del-btn" onclick="del(${list.indexOf(v)})">删除</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+  let avgVal=sumKm>0?(sumTotal/sumKm*100).toFixed(2):"0.00";
+  let avgCostPerKm = sumKm>0 ? (sumMoney / sumKm).toFixed(2):"0.00";
+  document.getElementById('sumKm').innerText=sumKm.toFixed(1);
+  document.getElementById('sumTotal').innerText=sumTotal.toFixed(2);
+  document.getElementById('sumMoney').innerText=sumMoney.toFixed(2);
+  document.getElementById('avgCostPerKm').innerText=avgCostPerKm;
+  document.getElementById('avgVal').innerText=avgVal;
+}
+function del(idx){let list=getRecords();list.splice(idx,1);saveRecords(list);render();}
+function clearCurrentCar(){
+  let sel=document.getElementById('carSelect').value;
+  if(sel==="__ADD__")return;
+  if(!confirm(`确定清空【${sel}】当前模式所有记录？不可恢复！`))return;
+  let list=getRecords().filter(i=>!(i.carNo===sel && i.mode===currentMode));
+  saveRecords(list);render();
+}
+function deleteCar(){
+  let sel=document.getElementById('carSelect').value;
+  if(sel==="__ADD__")return;
+  if(!confirm(`确定删除车辆【${sel}】以及全部记录？`))return;
+  if(currentMode==="fuel"){
+      let cars = getFuelCarList().filter(c=>c!==sel);saveFuelCarList(cars);
+  }else{
+      let cars = getEvCarList().filter(c=>c!==sel);saveEvCarList(cars);
+  }
+  let rec=getRecords().filter(r=>r.carNo!==sel);saveRecords(rec);render();
+}
+function exportExcel(){
+  let list=getRecords();let sel=document.getElementById('carSelect').value;if(sel==="__ADD__")return;
+  let f=list.filter(i=>i.carNo===sel && i.mode===currentMode);
+  let csv="车牌,类型,记录日期,金额(元),单价,里程(km),耗量,每公里成本,百公里耗量\n";
+  f.forEach(v=>csv+=`${v.carNo},${v.mode},${v.time},${v.money},${v.price},${v.km},${v.total},${v.costPerKm},${v.per100km}\n`);
+  downloadFile(csv,`${sel}_${currentMode}_记录.csv`,"text/csv");
+}
+function exportTxt(){
+  let list=getRecords();
+  let sel=document.getElementById('carSelect').value;
+  if(sel==="__ADD__") return;
+  let f=list.filter(i=>i.carNo===sel && i.mode===currentMode);
+  let now=new Date();
+  let yyyy=now.getFullYear();
+  let mm=String(now.getMonth()+1).padStart(2,'0');
+  let dd=String(now.getDate()).padStart(2,'0');
+  let hh=String(now.getHours()).padStart(2,'0');
+  let mi=String(now.getMinutes()).padStart(2,'0');
+  let ss=String(now.getSeconds()).padStart(2,'0');
+  let fileName = `${sel}_${currentMode}_记录_${yyyy}${mm}${dd}_${hh}${mi}${ss}.txt`;
+  let exportTime=`${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+  let count=f.length;
+  let sumKm=0,sumTotal=0,sumMoney=0;
+  f.forEach(r=>{
+    sumKm+=Number(r.km);
+    sumTotal+=Number(r.total);
+    sumMoney+=Number(r.money);
+  });
+  let avgVal=sumKm>0 ? (sumTotal/sumKm*100).toFixed(2) : "0.00";
+  let avgCostPerKm = sumKm>0 ? (sumMoney / sumKm).toFixed(2):"0.00";
+  let unitName = currentMode==='fuel'?'L':'度';
+  let txt="加油充电记录汇总\n";
+  txt += `车牌：${sel}\n`;
+  txt += `模式：${currentMode==='fuel'?'燃油车':'新能源车'}\n`;
+  txt += `导出时间：${exportTime}\n`;
+  txt += `记录条数：${count} 条\n`;
+  txt += "----------------------------------------\n";
+  f.forEach(item=>{
+    let titleName = item.mode === "fuel" ? "【加油记录】" : "【充电记录】";
+    let uName = item.mode === "fuel" ? "L" : "度";
+    let dateStr = item.time.split(' ')[0];
+    txt += titleName+"\n";
+    txt += `日期：${dateStr}\n`;
+    txt += `金额：${item.money} 元\n`;
+    txt += `单价：${item.price} 元/${uName}\n`;
+    txt += `行驶里程：${item.km} km\n`;
+    txt += `耗量：${item.total} ${uName}\n`;
+    txt += `每公里成本：${item.costPerKm} 元/公里\n`;
+    txt += `每公里耗量：${item.perKm} ${uName}/公里\n`;
+    txt += `百公里耗量：${item.per100km} ${uName}/100km\n`;
+    txt += "----------------------------------------\n";
+  });
+  txt += "\n汇总统计\n";
+  txt += `总行驶里程：${sumKm.toFixed(1)} km\n`;
+  txt += `总耗量：${sumTotal.toFixed(2)} ${unitName}\n`;
+  txt += `总金额：${sumMoney.toFixed(2)} 元\n`;
+  txt += `平均每公里成本：${avgCostPerKm} 元/公里\n`;
+  txt += `平均耗量：${avgVal} ${unitName}/100km\n`;
+  downloadFile(txt, fileName,"text/plain");
+}
+function exportJson(){
+  let data={
+      fuelCarList:getFuelCarList(),
+      evCarList:getEvCarList(),
+      records:getRecords()
+  };
+  let json=JSON.stringify(data,null,2);
+  downloadFile(json,"全部备份.json","application/json");
+}
+function importJson(){
+  let input=document.createElement('input');input.type='file';input.accept='.json';
+  input.onchange=e=>{
+    let f=e.target.files[0];let reader=new FileReader();
+    reader.onload=evt=>{
+      try{
+        let d=JSON.parse(evt.target.result);
+        if(d.fuelCarList) saveFuelCarList(d.fuelCarList);
+        if(d.evCarList) saveEvCarList(d.evCarList);
+        if(d.records) saveRecords(d.records);
+        render();alert("导入成功！");
+      }catch(err){alert("文件解析失败，请选择正确的json备份文件");}
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}
+function downloadFile(content,filename,type){
+  if(window.plus){
+    let blob=new Blob([content],{type:type});
+    plus.io.resolveLocalFileSystemURL('_downloads',function(entry){
+      entry.getFile(filename,{create:true},function(fileEntry){
+        fileEntry.createWriter(function(writer){
+          writer.write(blob);
+          writer.onwriteend=function(){plus.nativeUI.toast("文件已保存到下载目录");};
+        });
+      });
+    });
+  }else{
+    let blob=new Blob([content],{type:type});
+    let url=URL.createObjectURL(blob);
+    let a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+  }
+}
+document.getElementById('carSelect').onchange=function(){let v=this.value;if(v==="__ADD__")addNewCar();else render();};
+document.getElementById('carSelect').onclick=function(){if(this.value==="__ADD__")setTimeout(()=>addNewCar(),50);};
 
-window.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded')
-})
-
-// 监听全屏变化
-document.addEventListener('fullscreenchange', () => {
-    console.log('fullscreenchange')
-})
-
-// Safari / WebKit
-document.addEventListener('webkitfullscreenchange', () => {
-    console.log('webkitfullscreenchange')
-})
+if(window.plus){
+  plus.globalEvent.addEventListener('plusready',function(){render();});
+}else{
+  render();
+}
+</script>
+</body>
+</html>
